@@ -145,7 +145,7 @@ export class TsMorphProject {
       this.hre.config.typechain.outDir
     );
     // TODO : Create PR to typechain for optional index file or implciit / explicit generation.
-    removeSync(path.resolve(this.hre.config.typechain.outDir, "index.ts"));
+    // removeSync(path.resolve(this.hre.config.typechain.outDir, "index.ts"));
     const typechainFactoriesFiles = readdirSync(typechainFactoriesPath);
     log("typechainInstanceFiles => ");
     log(typechainInstanceFiles);
