@@ -138,6 +138,11 @@ export class ReactContext {
         }`,
     });
     this.addConstStatment({
+      name: "defaultWeb3Modal",
+      type: "Web3Modal | undefined",
+      initializer: "undefined",
+    });
+    this.addConstStatment({
       name: "defaultProvider",
       type: "providers.Provider | undefined",
       initializer: "undefined",
@@ -182,6 +187,8 @@ export class ReactContext {
       type: `${this.componentName}ContextInterface`,
       initializer: `{
         currentHardhatProvider: "",
+        web3Modal: undefined,
+        clearCachedProvider: () => { throw Error("Symfoni context not initialized") },
         init: () => { throw Error("Symfoni context not initialized") },
         loading: false,
         messages: [],
@@ -229,6 +236,14 @@ export class ReactContext {
         {
           name: "currentHardhatProvider",
           type: `string`,
+        },
+        {
+          name: "web3Modal?",
+          type: `Web3Modal`,
+        },
+        {
+          name: "clearCachedProvider",
+          type: `() => void`,
         },
         {
           name: "providers",

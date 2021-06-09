@@ -36,7 +36,7 @@ export class ReactComponent {
     this.consoleLog();
     this.getProvider();
     this.getSigner();
-    this.getWeb3ModalProvider();
+    this.getWeb3Modal();
     this.initSideEffect();
     this.contractInits();
     this.handleInitProvider();
@@ -51,6 +51,10 @@ export class ReactComponent {
     this.insertConstStatement(
       "[currentHardhatProvider, setCurrentHardhatProvider]",
       `useState("")`
+    );
+    this.insertConstStatement(
+      "[web3Modal, setWeb3Modal]",
+      "useState<Web3Modal | undefined>(defaultWeb3Modal)"
     );
     this.insertConstStatement("[loading, setLoading]", "useState(false)");
     this.insertConstStatement(
@@ -96,12 +100,13 @@ export class ReactComponent {
           name: "getProvider",
           initializer: (writer) => {
             writer.write(
-              `async (): Promise<{provider: providers.Provider, hardhatProviderName: string } | undefined> => {
+              `async (): Promise<{provider: providers.Provider, hardhatProviderName: string, web3Modal?: Web3Modal } | undefined> => {
                 let hardhatProviderName = "Not set";
+                const web3Modal: Web3Modal = getWeb3Modal(); 
                 let _providerPriority = [...providerPriority];
                 // Fallback provider
                 if (fallbackProvider && autoInit && initializeCounter === 0) {
-                    if (localStorage.getItem("WEB3_CONNECT_CACHED_PROVIDER") === null) {
+                    if (!web3Modal.cachedProvider) {
                         _providerPriority = _providerPriority.sort((a, b) => {
                             return a === fallbackProvider ? -1 : b === fallbackProvider ? 1 : 0;
                         })
@@ -116,8 +121,8 @@ export class ReactComponent {
                         switch (providerIdentification.toLowerCase()) {
                             case "web3modal":
                                 try {
-                                    const provider = await getWeb3ModalProvider()
-                                    const web3provider = new ethers.providers.Web3Provider(provider);
+                                    const provider = await web3Modal.connect()
+                                    const web3provider = new ethers.providers.Web3Provider(provider, "any");
                                     hardhatProviderName =  "web3modal";
                                     return Promise.resolve(web3provider)
                                 } catch (error) {
@@ -224,7 +229,8 @@ export class ReactComponent {
                   return Promise.resolve(provider)
               } catch (error) {
                   return Promise.resolve(undefined)
-              }`
+              }
+              `
                 );
               }
             }
@@ -234,7 +240,7 @@ export class ReactComponent {
                         }
                     }
                 }, Promise.resolve(undefined)) // end reduce
-                return provider ? { provider, hardhatProviderName } : undefined
+                return provider ? { provider, hardhatProviderName, web3Modal: hardhatProviderName === 'web3modal' ? web3Modal : undefined } : undefined
                 }`
             );
           },
@@ -334,7 +340,7 @@ export class ReactComponent {
     });
   }
 
-  private getWeb3ModalProvider() {
+  private getWeb3Modal() {
     const providerOptions = {
       walletconnect: {
         package: `${"WalletConnectProvider"}`,
@@ -347,10 +353,10 @@ export class ReactComponent {
       declarationKind: VariableDeclarationKind.Const,
       declarations: [
         {
-          name: "getWeb3ModalProvider",
+          name: "getWeb3Modal",
           initializer: async (writer) => {
             writer.write(
-              `async (): Promise<any> => {
+              `(): Web3Modal => {
                 const providerOptions: IProviderOptions = {
                   `
             );
@@ -391,12 +397,11 @@ export class ReactComponent {
             }
             writer.write(`
                 };
-                const web3Modal = new Web3Modal({
+                return new Web3Modal({
                     // network: "mainnet",
-                    cacheProvider: false,
+                    cacheProvider: true,
                     providerOptions, // required
                 });
-                return await web3Modal.connect();
             }`);
           },
         },
@@ -433,6 +438,7 @@ export class ReactComponent {
             setProvider(_provider)
             setMessages(old => [...old, "Useing " + providerObject.hardhatProviderName])
             setCurrentHardhatProvider(providerObject.hardhatProviderName)
+            setWeb3Modal(providerObject.web3Modal)
             const _signer = await getSigner(_provider, providerObject.hardhatProviderName);
 
             if (!subscribed || !_signer) return finishWithContracts("Provider, without signer.")
@@ -550,7 +556,7 @@ export class ReactComponent {
     this.component.addStatements((writer) => {
       writer.write(
         `return (
-          <SymfoniContext.Provider value={{ init: (provider) => handleInitProvider(provider), providers: providerPriority,currentHardhatProvider, loading, messages }}>
+          <SymfoniContext.Provider value={{ init: (provider) => handleInitProvider(provider), providers: providerPriority, currentHardhatProvider, web3Modal, clearCachedProvider: () => web3Modal?.clearCachedProvider(), loading, messages }}>
             <ProviderContext.Provider value={[provider, setProvider]}>
                 <SignerContext.Provider value={[signer, setSigner]}>
                     <CurrentAddressContext.Provider value={[currentAddress, setCurrentAddress]}>`
