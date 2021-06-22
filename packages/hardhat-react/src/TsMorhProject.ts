@@ -268,13 +268,26 @@ export class TsMorphProject {
           }
           return path.basename(contract.deploymentFile) === deploymentFile;
         });
+        const contractsSorted = [...contracts].sort((a, b) => {
+          return (b.artifactFile?.length || 0) - (a.artifactFile?.length || 0);
+        });
         if (!exist) {
           log("Deployment " + deploymentFile + " had no contract.");
           // try to find the contract which has been used to instantiate the deploymentInstance
-          const possibleContract = contracts.find((contract) => {
-            const deploymentFileNormalized = path
-              .basename(deploymentFile, ".json")
+          const deploymentFileNormalized = path
+            .basename(deploymentFile, ".json")
+            .toLowerCase();
+          const possibleContract = contractsSorted.find((contract) => {
+            const artifactFileNormalized = path
+              .basename(contract.artifactFile, ".sol")
               .toLowerCase();
+            return deploymentFileNormalized.endsWith(artifactFileNormalized);
+          }) || contractsSorted.find((contract) => {
+            const artifactFileNormalized = path
+              .basename(contract.artifactFile, ".sol")
+              .toLowerCase();
+            return deploymentFileNormalized.startsWith(artifactFileNormalized);
+          }) || contractsSorted.find((contract) => {
             const artifactFileNormalized = path
               .basename(contract.artifactFile, ".sol")
               .toLowerCase();
